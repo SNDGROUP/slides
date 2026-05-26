@@ -96,14 +96,11 @@
             position: absolute;
             top: 0; left: 0;
             opacity: 0;
-            transform: scale(1.1);
-            filter: blur(10px);
-            transition: opacity 1.5s ease, filter 2s ease, transform 10s linear;
+            will-change: opacity;
+            transition: opacity 1.2s ease;
         }
         .carousel-img.active {
             opacity: 1;
-            filter: blur(0);
-            transform: scale(1);
             z-index: 2;
         }
 
@@ -313,19 +310,16 @@
 
         const root = document.getElementById('app-root');
 
+        // Cria estrutura do slide SEM imagens (carrega sob demanda)
         function render() {
             unidades.forEach((uni, idx) => {
                 const layout = idx % 2 === 0 ? 'layout-even' : 'layout-odd';
                 const theme = idx % 2 === 0 ? 'theme-light' : 'theme-dark';
-                
                 const slide = document.createElement('div');
                 slide.className = `slide-container ${layout} ${idx === 0 ? 'active' : ''}`;
-                
-                let imgs = uni.imagens.map((src, i) => `<img src="${src}" class="carousel-img ${i === 0 ? 'active' : ''}">`).join('');
-                let bens = uni.beneficios.map(b => `<li>${b}</li>`).join('');
-
+                const bens = uni.beneficios.map(b => `<li>${b}</li>`).join('');
                 slide.innerHTML = `
-                    <div class="hero-section" id="hero-${idx}">${imgs}</div>
+                    <div class="hero-section" id="hero-${idx}"></div>
                     <div class="content-section ${theme}">
                         <div class="progress-bar-container"><div class="progress-bar-fill"></div></div>
                         <div class="tag-linha">${uni.tag}</div>
@@ -337,11 +331,28 @@
                                 <span class="cta-label">Precisa de ajuda agora?</span>
                                 <span class="cta-phone">(11) 3564-1013</span>
                             </div>
-                            <img src="logo-redondo.PNG" class="logo-small">
+                            <img src="logo-redondo.PNG" class="logo-small" loading="lazy">
                         </div>
                     </div>
                 `;
                 root.appendChild(slide);
+            });
+        }
+
+        const loadedSlides = new Set();
+
+        // Injeta imagens no hero de um slide (só quando necessário)
+        function loadSlideImages(idx) {
+            if (loadedSlides.has(idx)) return;
+            loadedSlides.add(idx);
+            const hero = document.getElementById(`hero-${idx}`);
+            if (!hero) return;
+            unidades[idx].imagens.forEach((src, i) => {
+                const img = document.createElement('img');
+                img.src = src;
+                img.className = `carousel-img${i === 0 ? ' active' : ''}`;
+                if (i > 0) img.loading = 'lazy';
+                hero.appendChild(img);
             });
         }
 
@@ -352,12 +363,17 @@
             clearInterval(imgInterval);
             const imgs = document.querySelectorAll(`#hero-${idx} .carousel-img`);
             let cur = 0;
-            if(imgs.length < 2) return;
+            if (imgs.length < 2) return;
             imgInterval = setInterval(() => {
                 imgs[cur].classList.remove('active');
                 cur = (cur + 1) % imgs.length;
                 imgs[cur].classList.add('active');
             }, TEMPO_FOTO);
+        }
+
+        function preloadNext(idx) {
+            const nextIdx = (idx + 1) % unidades.length;
+            loadSlideImages(nextIdx);
         }
 
         function transition() {
@@ -369,22 +385,26 @@
                 currentIdx = (currentIdx + 1) % slides.length;
                 slides[currentIdx].classList.add('active');
                 startCarousel(currentIdx);
+                preloadNext(currentIdx);
                 overlay.classList.add('zoom');
                 setTimeout(() => { overlay.classList.remove('active', 'zoom'); }, 900);
             }, 1200);
         }
 
-        window.onload = () => {
+        document.addEventListener('DOMContentLoaded', () => {
             document.documentElement.style.setProperty('--tempo-troca-unidade', `${TEMPO_UNIDADE / 1000}s`);
             render();
+            // Carrega apenas o primeiro slide imediatamente
+            loadSlideImages(0);
             setTimeout(() => {
                 document.getElementById('intro-screen').classList.add('hide');
                 setTimeout(() => {
                     startCarousel(0);
+                    preloadNext(0);
                     setInterval(transition, TEMPO_UNIDADE);
                 }, 1500);
-            }, 5000);
-        };
+            }, 3000);
+        });
     </script>
 </body>
 </html>
