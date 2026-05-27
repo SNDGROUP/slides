@@ -1,0 +1,10 @@
+node_modules/
+*.jpg
+*.jpeg
+*.JPG
+*.JPEG
+*.PNG
+*.png
+convert-images.js
+package.json
+package-lock.json
